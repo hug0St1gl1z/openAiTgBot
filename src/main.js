@@ -1,34 +1,36 @@
 import { Telegraf, session, Markup } from 'telegraf'
 import { message } from 'telegraf/filters'
 import { code } from 'telegraf/format'
+import fetch from 'node-fetch'
 import config from 'config'
 import { ogg } from './ogg.js'
 import { openAi } from './OpenAI.js'
-import fetch from 'node-fetch'
-
-const weatherApiUrl = 'https://api.openweathermap.org/data/2.5/weather'
-const weatherApiKey = '3df8a5d919ce77e18c77dd64b5afbb2b'
 
 const bot = new Telegraf(config.get('TOKEN'))
 const INIT_SESSION = { messages: [] }
-
 bot.use(session())
+const hi1 = 'Если хочешь поболтать с кем то, кто умнее тебя - просто задай мне вопрос голосом или напиши его! \n'
+const hi2 = 'Если хочешь узнать погоду в месте где ты находишься нажми на кнопку!'
 
 bot.command('new', async (ctx) => {
 	ctx.session = INIT_SESSION
-	await ctx.reply('Поболтаем?')
+	await ctx.reply('Готов к новому разговору...')
 })
 
 bot.command('start', async (ctx) => {
-	ctx.session = INIT_SESSION
-	await ctx.reply('Если хочешь поболтать с кем то, кто умнее тебя - просто задай мне вопрос голосом или напиши его!')
-    await ctx.reply(
-		'Если хочешь узнать погоду в месте где ты находишься нажми на кнопку!')
-
-	Markup.keyboard([Markup.button.locationRequest('Получить погоду')])
-		.oneTime()
-		.resize()
+	try {
+		ctx.session = INIT_SESSION
+		await ctx.reply(
+        `${hi1}`)
+        await ctx.reply(
+            `${hi2}`, Markup.keyboard([{text: 'Узнать погоду', request_location: true}]).resize())
+	} catch (e) {
+		console.log('Error strat: ', e.message)
+	}
 })
+
+
+bot.start()
 
 bot.on(message('voice'), async (ctx) => {
 	ctx.session ??= INIT_SESSION
@@ -50,13 +52,13 @@ bot.on(message('voice'), async (ctx) => {
 		})
 		await ctx.reply(response.content)
 	} catch (e) {
-		console.log('Error: ', e.message)
+		console.log('Error voice: ', e.message)
 	}
 })
+
 bot.on(message('text'), async (ctx) => {
 	ctx.session ??= INIT_SESSION
 	try {
-		await ctx.reply(code('Сообщение принято - перевожу!'))
 		ctx.session.messages.push({
 			role: openAi.roles.USER,
 			content: ctx.message.text,
@@ -68,39 +70,61 @@ bot.on(message('text'), async (ctx) => {
 		})
 		await ctx.reply(response.content)
 	} catch (e) {
-		console.log('Error: ', e.message)
+		console.log('Error text: ', e.message)
 	}
 })
 
-bot.on('location', async (ctx) => {
-    const latitude = ctx.update.message.location.latitude;
-    const longitude = ctx.update.message.location.longitude;
-    const apiUrl = `${weatherApiUrl}?lat=${latitude}&lon=${longitude}&appid=${weatherApiKey}&units=metric`;
-  
-    try {
-      const response = await fetch(apiUrl);
-      const data = await response.json();
-  
-      const cityName = data.name;
-      const weatherDescription = data.weather[0].description;
-      const temperature = data.main.temp;
-      const feelsLike = data.main.feels_like;
-      const windSpeed = data.wind.speed;
-      const windDeg = data.wind.deg;
-      const windDirection = getWindDirection(windDeg);
-      const message = `Погода в ${cityName}: ${weatherDescription}. \n\nТемпература: ${temperature}°C (ощущается как ${feelsLike}°C). \n\nСкорость ветра: ${windSpeed} м/с. Направление ветра: ${windDirection}.`;
-      ctx.reply(message);
-    } catch (error) {
-      console.error(error);
-      ctx.reply('Упс, что-то пошло не так. Попробуйте еще раз позже.');
-    }
-  });
-  
-  function getWindDirection(deg) {
-    const directions = ['С', 'ССВ', 'СВ', 'ВСВ', 'В', 'ВЮВ', 'ЮВ', 'ЮЮВ', 'Ю', 'ЮЮЗ', 'ЮЗ', 'ЗЮЗ', 'З', 'ЗСЗ', 'СЗ', 'ССЗ'];
-    const index = Math.round((deg % 360) / 22.5);
-    return directions[index];
-  }
+bot.on(message('location'), async (ctx) => {
+	const latitude = ctx.update.message.location.latitude
+	const longitude = ctx.update.message.location.longitude
+	const apiUrl = `${config.get(
+		'weatherApiUrl'
+	)}?lat=${latitude}&lon=${longitude}&appid=${config.get(
+		'weatherApiKey'
+	)}&units=metric`
+
+	try {
+		const response = await fetch(apiUrl)
+		const data = await response.json()
+
+		const cityName = data.name
+		const weatherDescription = data.weather[0].description
+		const temperature = data.main.temp
+		const feelsLike = data.main.feels_like
+		const windSpeed = data.wind.speed
+		const windDeg = data.wind.deg
+		const windDirection = getWindDirection(windDeg)
+		const message = `Погода в ${cityName}: ${weatherDescription}. \n\nТемпература: ${temperature}°C \n(ощущается как ${feelsLike}°C). \n\nСкорость ветра: ${windSpeed} м/с. \nНаправление ветра: ${windDirection}.`
+		await ctx.reply(message)
+        await ctx.reply('Готов к разговору...')
+	} catch (error) {
+		console.error(error)
+		ctx.reply('Упс, что-то пошло не так. Попробуйте еще раз позже.')
+	}
+})
+
+function getWindDirection(deg) {
+	const directions = [
+		'С',
+		'ССВ',
+		'СВ',
+		'ВСВ',
+		'В',
+		'ВЮВ',
+		'ЮВ',
+		'ЮЮВ',
+		'Ю',
+		'ЮЮЗ',
+		'ЮЗ',
+		'ЗЮЗ',
+		'З',
+		'ЗСЗ',
+		'СЗ',
+		'ССЗ',
+	]
+	const index = Math.round((deg % 360) / 22.5)
+	return directions[index]
+}
 
 bot.launch()
 

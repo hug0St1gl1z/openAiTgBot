@@ -23,7 +23,7 @@ class OpenAI {
 			})
             return response.data.choices[0].message
 		} catch (e) {
-			console.log('Error delete chat: ' + e.message)
+			console.log('Error chat: ' + e.message)
 		}
 	}
 
@@ -35,7 +35,7 @@ class OpenAI {
 			)
 			return response.data.text
 		} catch (e) {
-			console.log('Error delete transcription: ' + e.message)
+			console.log('Error transcription: ' + e.message)
 		}
 	}
 }
