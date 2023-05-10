@@ -1,4 +1,8 @@
 {
     "TOKEN": "5701660284:AAG5pMs91iE9Rt2MtcPjOFM2E-9bGdZHztk",
-    "OPENAI": "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"
+    "OPENAI": "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",
+    "weatherApiUrl" : "https://api.openweathermap.org/data/2.5/weather",
+    "weatherApiKey" :"3df8a5d919ce77e18c77dd64b5afbb2b"
 }
+
+ 
